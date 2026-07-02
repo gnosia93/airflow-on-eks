@@ -1,7 +1,12 @@
 # airflow-on-eks
 
+* 1. EKS 설치 및 환경구성
 * [2. airflow 설치](https://github.com/gnosia93/airflow-on-eks/blob/main/lecture/2-airflow-install.md)
 * [3. 데이터 전처리](https://github.com/gnosia93/airflow-on-eks/blob/main/lecture/3-preprocessing.md)
+* 4. 모델학습
+* 5. 모델튜닝
+* 6. 서빙
+
 
 MLOps 관점에서 중요한 포인트
 워크샵 전체 플로우(수집 → 분석 → 전처리 → 훈련 → 튜닝 → 서빙)를 EKS 기반으로 돌리려면 설치 단계에서 미리 챙겨야 할 것들이 있어요.
