@@ -1,0 +1,32 @@
+# Airflow 워커(airflow-worker 서비스 계정)가 airflow 네임스페이스에서
+# 추론 Deployment/Service를 생성·갱신할 수 있도록 권한을 부여한다.
+# 이 권한은 model_serving DAG가 kubectl apply / rollout 을 수행하는 데 필요하다.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: serving-deployer
+  namespace: airflow
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: serving-deployer-binding
+  namespace: airflow
+subjects:
+  - kind: ServiceAccount
+    name: airflow-worker
+    namespace: airflow
+roleRef:
+  kind: Role
+  name: serving-deployer
+  apiGroup: rbac.authorization.k8s.io
