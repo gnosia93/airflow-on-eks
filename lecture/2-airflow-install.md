@@ -93,6 +93,83 @@ helm repo update
 
 ## Step 4. Airflow 설치
 
+* value 파일 생성.
+```
+# Apache Airflow Helm Chart 구성 값 (EKS MLOps 워크숍용)
+# 공식 차트: https://airflow.apache.org  (apache-airflow/airflow)
+#
+# 이 값은 워크숍 실습에 맞춘 설정이다. 운영 환경에서는 아래 주석의 권장 사항을 따른다.
+
+# ---------------------------------------------------------------------------
+# Executor: MLOps 파이프라인은 태스크별 리소스 격리가 중요하므로 KubernetesExecutor 사용.
+# 각 태스크가 독립된 Pod로 실행되어 확장성과 격리가 뛰어나다.
+# ---------------------------------------------------------------------------
+executor: "KubernetesExecutor"
+
+# 이미지 태그 (Airflow 2.9.x 기준)
+airflowVersion: "2.9.3"
+defaultAirflowTag: "2.9.3"
+
+# ---------------------------------------------------------------------------
+# 웹서버: 실습에서는 LoadBalancer로 간단히 노출한다.
+# 운영에서는 Ingress + AWS ALB, 그리고 인증(OAuth/OIDC) 사용을 권장.
+# ---------------------------------------------------------------------------
+webserver:
+  service:
+    type: LoadBalancer
+  # 기본 admin 계정 (실습용). 운영에서는 반드시 변경/비활성화.
+  defaultUser:
+    enabled: true
+    role: Admin
+    username: admin
+    password: admin
+    email: admin@example.com
+    firstName: admin
+    lastName: user
+
+# ---------------------------------------------------------------------------
+# 메타데이터 DB: 실습은 차트 내장 PostgreSQL 사용.
+# 운영에서는 postgresql.enabled=false 후 외부 Amazon RDS(PostgreSQL) 연결 권장.
+# ---------------------------------------------------------------------------
+postgresql:
+  enabled: true
+
+# ---------------------------------------------------------------------------
+# DAG 배포: git-sync 사이드카가 저장소를 주기적으로 pull.
+# <your-org>/<your-dags-repo>를 실제 저장소로 교체한다.
+# 비공개 저장소면 gitSync.credentialsSecret 로 인증 정보를 주입한다.
+# ---------------------------------------------------------------------------
+dags:
+  gitSync:
+    enabled: true
+    repo: https://github.com/<your-org>/<your-dags-repo>.git
+    branch: main
+    subPath: "dags"
+    wait: 60
+
+# ---------------------------------------------------------------------------
+# 워커/스케줄러가 KubernetesPodOperator로 태스크 Pod를 생성할 수 있도록
+# 서비스 계정에 권한이 필요하다. IRSA는 별도 단계에서 매핑한다(README 참고).
+# ---------------------------------------------------------------------------
+workers:
+  serviceAccount:
+    create: false
+    name: airflow-worker
+
+scheduler:
+  serviceAccount:
+    create: false
+    name: airflow-worker
+
+# 로그: 실습은 영구 볼륨(PVC) 사용. 운영에서는 S3 원격 로깅 권장.
+logs:
+  persistence:
+    enabled: true
+    size: 5Gi
+```
+
+
+
 같은 디렉터리의 `values.yaml`을 사용한다. 설치 전 `values.yaml`의 `dags.gitSync.repo`를
 본인의 DAG 저장소로 교체한다.
 
