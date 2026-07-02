@@ -1,15 +1,10 @@
-# Lab: 데이터 수집 및 전처리 (EKS Pod 실행)
+## 데이터 수집 및 전처리 ##
 
 Wine Quality 공개 데이터셋을 수집하고 전처리하는 MLOps 파이프라인 앞단을 실습한다.
-모든 연산은 EKS 클러스터의 Pod에서 실행되며, 중간 산출물은 S3에 저장된다. SageMaker는 사용하지 않는다.
+모든 연산은 EKS 클러스터의 Pod에서 실행되며, 중간 산출물은 S3에 저장된다. 
 
-## 학습 목표
 
-- `KubernetesPodOperator`로 Airflow 태스크를 EKS Pod에서 실행하는 패턴 이해
-- IRSA(IAM Roles for Service Accounts)로 Pod에 S3 접근 권한 부여
-- 수집 → 전처리 두 단계의 의존성을 DAG로 오케스트레이션
-
-## 파이프라인 흐름
+### 1. 파이프라인 흐름 ###
 
 ```
 collect_data (Pod)  ──►  preprocess_data (Pod)
@@ -19,7 +14,7 @@ collect_data (Pod)  ──►  preprocess_data (Pod)
  wine_quality_raw.csv     train.parquet, test.parquet, scaler.pkl
 ```
 
-## 디렉터리 구조
+### 디렉터리 구조 ###
 
 ```
 data-collection-preprocessing/
@@ -34,11 +29,7 @@ data-collection-preprocessing/
 └── README.md
 ```
 
-## 사전 준비
-
-- EKS 클러스터와 Airflow(`airflow` 네임스페이스)가 이미 설치되어 있어야 한다.
-- AWS CLI, kubectl, eksctl, docker 가 설치되어 있어야 한다.
-- 아래 환경 변수를 셸에 설정한다.
+### Step 1. S3 버킷 생성 ###
 
 ```bash
 export AWS_REGION=ap-northeast-2
@@ -47,13 +38,11 @@ export S3_BUCKET=my-mlops-workshop-bucket   # 고유한 이름으로 교체
 export CLUSTER_NAME=airflow-mlops
 ```
 
-## Step 1. S3 버킷 생성
-
 ```bash
 aws s3 mb "s3://${S3_BUCKET}" --region "${AWS_REGION}"
 ```
 
-## Step 2. 이미지 빌드 후 ECR 푸시
+### Step 2. 이미지 빌드 후 ECR 푸시 ###
 
 ```bash
 # ECR 리포지토리 생성
@@ -73,7 +62,7 @@ docker tag wine-mlops:latest \
 docker push "${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/wine-mlops:latest"
 ```
 
-## Step 3. IRSA 서비스 계정 생성 (S3 접근 권한)
+### Step 3. IRSA 서비스 계정 생성 (S3 접근 권한) ###
 
 Pod가 S3에 접근하려면 서비스 계정에 IAM 역할을 매핑한다.
 
@@ -89,7 +78,7 @@ eksctl create iamserviceaccount \
 
 > 운영 환경에서는 `AmazonS3FullAccess` 대신 해당 버킷에만 접근하는 최소 권한 정책을 사용한다.
 
-## Step 4. Airflow Variable 설정
+### Step 4. Airflow Variable 설정 ###
 
 DAG가 참조하는 이미지 URI와 버킷 이름을 주입한다.
 
@@ -102,14 +91,14 @@ kubectl exec -n airflow deploy/airflow-scheduler -- \
   airflow variables set mlops_s3_bucket "${S3_BUCKET}"
 ```
 
-## Step 5. DAG 배포
+### Step 5. DAG 배포 ###
 
 git-sync를 쓰는 경우 `dags/data_collection_preprocessing_dag.py`를 DAG 저장소에 push하면 자동 반영된다.
 수동 복사 방식이라면 스케줄러/워커의 dags 경로에 파일을 넣는다.
 
 Airflow UI에서 `data_collection_preprocessing` DAG를 활성화한 뒤 **Trigger DAG**를 클릭한다.
 
-## Validation (검증)
+### Validation (검증) ###
 
 1. **DAG 실행 상태 확인** — Airflow UI Grid 뷰에서 두 태스크가 모두 초록색(success)인지 확인.
 
@@ -130,7 +119,7 @@ Airflow UI에서 `data_collection_preprocessing` DAG를 활성화한 뒤 **Trigg
    [preprocess] DONE. train=... test=... features=12 base=s3://.../processed/dt=...
    ```
 
-## 문제 해결
+### 문제 해결 ###
 
 | 증상 | 원인 / 대응 |
 |------|-------------|
@@ -138,6 +127,4 @@ Airflow UI에서 `data_collection_preprocessing` DAG를 활성화한 뒤 **Trigg
 | `AccessDenied` (S3) | IRSA 미적용. `kubectl describe sa airflow-worker -n airflow`로 `eks.amazonaws.com/role-arn` 애노테이션 확인 |
 | `collect_data` 네트워크 오류 | 노드가 프라이빗 서브넷이면 NAT Gateway 필요 (UCI 외부 다운로드) |
 
-## 다음 단계
 
-이 랩의 산출물(`train.parquet`, `test.parquet`, `scaler.pkl`)은 이후 **모델 학습 → 튜닝 → 서빙** 랩의 입력으로 사용된다.
