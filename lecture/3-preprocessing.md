@@ -17,7 +17,7 @@ collect_data (Pod)  ──►  preprocess_data (Pod)
 ### 디렉터리 구조 ###
 
 ```
-data-collection-preprocessing/
+airflow-on-eks/
 ├── dags/
 │   └── data_collection_preprocessing_dag.py   # Airflow DAG
 ├── scripts/
